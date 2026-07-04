@@ -2,44 +2,92 @@ from ai.sql_generator import generate_sql
 from database.sql_executor import execute_query
 from prompts.sql_prompt import build_sql_prompt
 from ai.sql_corrector import correct_sql
+from ai.insight_generator import generate_insights
 
 
 def ask_database(question):
 
-    sql = generate_sql(question)
-
-    print("\nGenerated SQL:\n")
-    print(sql)
+    # Default response
+    response = {
+        "question": question,
+        "sql": "",
+        "data": None,
+        "insights": "",
+        "error": None
+    }
 
     try:
+        # -------------------------
+        # Generate SQL
+        # -------------------------
+        sql = generate_sql(question)
+        response["sql"] = sql
 
-        result = execute_query(sql)
+        print("\nGenerated SQL:\n")
+        print(sql)
 
-        return result
+        # -------------------------
+        # Execute SQL
+        # -------------------------
+        data = execute_query(sql)
+        response["data"] = data
 
-    except Exception as e:
+    except Exception as sql_error:
 
-        print("\nSQL Failed")
-        print(e)
+        print("\nSQL Execution Failed")
+        print(sql_error)
 
-        print("\nTrying to fix SQL...\n")
+        try:
+            print("\nTrying to correct SQL...\n")
 
-        prompt = build_sql_prompt(question)
+            prompt = build_sql_prompt(question)
 
-        fixed_sql = correct_sql(sql, str(e), prompt)
+            fixed_sql = correct_sql(
+                sql,
+                str(sql_error),
+                prompt
+            )
 
-        print("Corrected SQL:\n")
-        print(fixed_sql)
+            response["sql"] = fixed_sql
 
-        result = execute_query(fixed_sql)
+            print("\nCorrected SQL:\n")
+            print(fixed_sql)
 
-        return result
+            data = execute_query(fixed_sql)
+
+            response["data"] = data
+
+        except Exception as final_error:
+
+            response["error"] = str(final_error)
+
+            return response
+
+    # -------------------------
+    # Generate Insights
+    # -------------------------
+    try:
+
+        response["insights"] = generate_insights(
+            question,
+            response["data"]
+        )
+
+    except Exception as insight_error:
+
+        print("Insight Error:", insight_error)
+
+        response["insights"] = (
+            "⚠️ AI Business Insights are currently unavailable."
+        )
+
+    return response
 
 
 if __name__ == "__main__":
 
-    question = input("Ask: ")
+    q = input("Ask: ")
 
-    df = ask_database(question)
+    result = ask_database(q)
 
-    print(df)
+    print(result)

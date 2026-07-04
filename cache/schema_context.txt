@@ -1,0 +1,35 @@
+1.  **What this database is about.**
+    This database is designed to store and analyze sales transaction data. It allows tracking of individual sales events, linking them to specific products sold, the sales personnel responsible, and the geographical locations where sales occurred. Its primary purpose is to support sales reporting, performance analysis, and insights into product, personnel, and geographical sales trends.
+
+2.  **Meaning of every table.**
+    *   **geo:** This is a dimension table containing master data about geographical locations. Each record represents a unique geographical entity (e.g., a city or district) and provides its name (`Geo`), a unique identifier (`GeoID`), and a broader regional classification (`Region`).
+    *   **people:** This is a dimension table that stores information about the sales personnel. Each record uniquely identifies a salesperson and includes their name (`Sales Person`), a unique identifier (`SP ID`), their base `Location`, and the `Team` they belong to.
+    *   **products:** This is a dimension table holding detailed information about all products available for sale. Each entry describes a unique product, including its name (`Product`), a unique identifier (`Product ID`), its `Category`, `Size`, and the `Cost per Box`.
+    *   **sales_data:** This is the central fact table containing individual sales transactions. Each record represents a single sales event, detailing the `Date` of the sale, the total `Amount` generated, the `Boxes` of product sold, and references to the specific `Geo` location, `Product`, and `Sales Person` involved in that transaction.
+
+3.  **Meaning of important columns.**
+    *   **geo.Geo (PK/FK):** This column serves as the primary identifier for a geographical location within the `geo` table and is also the foreign key used to link sales transactions in `sales_data` to a specific geography. It must contain unique values in the `geo` table.
+    *   **people.Sales Person (PK/FK):** This column acts as the primary identifier for a sales person in the `people` table and is the foreign key used to link sales transactions in `sales_data` to the responsible sales person. It must contain unique values in the `people` table.
+    *   **products.Product (PK/FK):** This column is the primary identifier for a product in the `products` table and the foreign key used to link sales transactions in `sales_data` to the specific product sold. It must contain unique values in the `products` table.
+    *   **sales_data.Amount:** Represents the total monetary value (revenue) generated from a particular sales transaction.
+    *   **sales_data.Boxes:** Represents the quantity of the product sold in terms of boxes for a given sales transaction.
+    *   **sales_data.Date:** The date on which a specific sales transaction took place.
+    *   **products."Cost per Box":** The internal cost associated with one box of a particular product. This can be used to calculate gross profit when combined with sales data.
+
+4.  **Important business rules.**
+    *   **Referential Integrity:** Every sales record in `sales_data` must accurately link to an existing geographical location in the `geo` table, an existing sales person in the `people` table, and an existing product in the `products` table.
+    *   **Unique Identifiers (Natural Keys for FKs):** The `Geo`, `Sales Person`, and `Product` columns in their respective dimension tables are treated as unique identifiers because they are directly used as foreign keys in the `sales_data` table. This implies a business rule that these names are unique and stable.
+    *   **Sales Attribution:** Each sale is uniquely attributed to one geographical location, one sales person, and one product.
+    *   **Profitability Tracking:** The `Cost per Box` in the `products` table allows for the calculation of gross profit per transaction (Amount - (Boxes * Cost per Box)), enabling profitability analysis.
+
+5.  **Things an SQL generator should know.**
+    *   **Foreign Key Relationships Use Natural Keys:** The foreign key relationships are defined by *name* columns (e.g., `geo.Geo`, `people.Sales Person`, `products.Product`) rather than their corresponding ID columns (e.g., `geo.GeoID`). This is critical for generating correct JOIN clauses.
+    *   **Fact and Dimension Model:** `sales_data` is the central fact table, while `geo`, `people`, and `products` are dimension tables. Queries typically involve joining the fact table with one or more dimension tables to provide context for sales metrics.
+    *   **Standard Joins:** For analytical queries, `INNER JOIN` operations should be used to combine `sales_data` with dimension tables based on the specified relationships:
+        *   `sales_data.Geo = geo.Geo`
+        *   `sales_data."Sales Person" = people."Sales Person"`
+        *   `sales_data.Product = products.Product`
+    *   **Common Aggregations:** `sales_data.Amount` and `sales_data.Boxes` are key measures that will frequently be aggregated (SUM, AVG) across various dimensions (e.g., by `Date`, `geo.Region`, `people.Team`, `products.Category`).
+    *   **Derived Metrics:** The generator should recognize the potential to calculate profitability: `(sales_data.Amount - (sales_data.Boxes * products."Cost per Box"))` can derive gross profit per transaction.
+    *   **Data Types:** Assume appropriate data types for columns (e.g., `DATE` for `Date`, `DECIMAL`/`NUMERIC` for `Amount`, `Boxes`, `Cost per Box`, `VARCHAR`/`TEXT` for names and categories, `INTEGER` for IDs).
+    *   **Column Naming:** Be aware of spaces in column names (e.g., "Sales Person", "Cost per Box"), which require quoting in most SQL dialects.

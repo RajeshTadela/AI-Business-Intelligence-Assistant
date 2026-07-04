@@ -1,5 +1,6 @@
 from database.schema_reader import get_schema
 from database.relationship_reader import infer_relationships
+import os
 
 
 def build_sql_prompt(user_question: str):
@@ -27,31 +28,62 @@ def build_sql_prompt(user_question: str):
     for t1, c1, t2, c2 in relationships:
         relationship_text += f"{t1}.{c1} -> {t2}.{c2}\n"
 
-    prompt = f"""
-You are an expert MySQL developer.
+    # Read AI-generated business context
+    business_context = ""
 
-Database Schema:
+    if os.path.exists("cache/schema_context.txt"):
+        with open("cache/schema_context.txt", "r", encoding="utf-8") as f:
+            business_context = f.read()
+
+    prompt = f"""
+You are an expert MySQL SQL Engineer specializing in Business Intelligence.
+
+Your job is to convert natural language questions into accurate, optimized, executable MySQL queries.
+
+=========================
+DATABASE SCHEMA
+=========================
 
 {schema_text}
 
-Relationships:
+=========================
+TABLE RELATIONSHIPS
+=========================
 
 {relationship_text}
 
-Rules:
+=========================
+BUSINESS CONTEXT
+=========================
 
+{business_context}
+
+=========================
+SQL GENERATION RULES
+=========================
 1. Generate ONLY valid MySQL SQL.
-2. Use ONLY the tables and columns listed above.
-3. Use the relationships above whenever a JOIN is needed.
-4. Return ONLY SQL.
-5. Never explain.
-6. Never use markdown.
-7. If the question cannot be answered using the schema, reply exactly:
-CANNOT_GENERATE_SQL
+2. Use ONLY the tables and columns listed in the schema.
+3. Never invent tables or columns.
+4. Use JOIN only when columns from multiple tables are required.
+5. If all required columns exist in one table, do NOT use JOIN.
+6. Prefer the simplest correct SQL.
+7. Use GROUP BY only when aggregate functions are used.
+8. Use ORDER BY for ranking requests (top, bottom, highest, lowest, etc.).
+9. Use LIMIT when the user specifies a number.
+10. Never use SELECT *.
+11. Select only the required columns.
+12. Return ONLY executable SQL.
+13. Never explain the SQL.
+14. Never wrap SQL in markdown.
+15. If the question cannot be answered from the schema, return CANNOT_GENERATE_SQL.
 
-User Question:
+=========================
+USER QUESTION
+=========================
 
 {user_question}
+
+Generate the SQL now.
 """
 
     return prompt
